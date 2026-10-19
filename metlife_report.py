@@ -245,12 +245,12 @@ def build_report(raw: pd.DataFrame, config: pd.DataFrame, holidays=None) -> pd.D
     df["Check_TAT"] = mapped.fillna(pd.to_numeric(df["Check_TAT"], errors="coerce"))
 
     df["Month"] = df["case_received_date"].dt.strftime("%b-%y")
-    df["Max TAT"] = df["Max_date"]
+    # Max TAT = latest of the query's Max_date and the check's creation date (date part only).
+    df["Max TAT"] = pd.concat([df["Max_date"], df["check_created_on"].dt.normalize()], axis=1).max(axis=1)
     df["Checks Due Date1"] = _workday(df["Max TAT"], df["Check_TAT"], holidays)
 
     closed = df["Check Closure Date"].fillna(pd.Timestamp(date.today()))
-    in_progress = df["check_status_code"].isin([2, 3, 10])
-    df["TAT"] = np.where(in_progress | ~(df["Checks Due Date1"] < closed), "IT", "OT")
+    df["TAT"] = np.where(df["Checks Due Date1"] < closed, "OT", "IT")
     return df.drop(columns=["check_status_code", "Check_TAT_query"])
 
 
